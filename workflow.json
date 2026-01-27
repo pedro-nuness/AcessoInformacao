@@ -1,0 +1,169 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "validateText",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        16
+      ],
+      "id": "002ead43-56d9-406f-b4a2-ef092178535e",
+      "name": "Webhook",
+      "webhookId": "9971f472-c142-4114-b954-4ca2c80ecda2",
+      "retryOnFail": false,
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "20cc55db-179d-4c36-969d-7925e8d709fb",
+              "leftValue": "={{ $json.body.text }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "942deaea-a09d-4661-bf98-8b5ddfccbf76",
+              "leftValue": "={{ $json.body.text }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        192,
+        16
+      ],
+      "id": "57f30426-fcab-4ce6-b8c4-a097184903b3",
+      "name": "Check text existance"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n    \"ExceptionType\": \"ValidationException\",\n    \"Notifications\": [\n        {\n            \"Key\": \"text\",\n            \"Message\": \"Text inexistente ou inválido\"\n        }\n    ]\n}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        400,
+        96
+      ],
+      "id": "0d6d9a45-770c-4c9a-b8ef-c0f759144010",
+      "name": "ValidationException"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\n\nlet text = $input.first().json.body.text;\n\n\n\n\n\n\nreturn { text };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        -80
+      ],
+      "id": "d8208593-b592-404f-a7a5-c0d9283f52fc",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "user-agent": "vscode-restclient",
+            "content-type": "application/json",
+            "accept-encoding": "gzip, deflate",
+            "content-length": "35",
+            "host": "0.0.0.0:5678",
+            "connection": "close"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "text": "testeeeeeeeeeee"
+          },
+          "webhookUrl": "http://0.0.0.0:5678/webhook-test/validateText",
+          "executionMode": "test"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Check text existance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check text existance": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "ValidationException",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "aeeba9e4-9641-4b4a-b2f6-8477279f4461",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b2f0124ee518bf0a54ca6fd85d1288e1fc88c5f517cf04bd72e23c50eae60d61"
+  },
+  "id": "SS_HlykSn_r86VfDCXZXH",
+  "tags": []
+}
