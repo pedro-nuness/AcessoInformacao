@@ -40,6 +40,7 @@ def row_to_model(row) -> Optional[RegisterProcessEvent]:
         status=Status(row.get("status")) if row.get("status") is not None else Status.RECEIVED,
         shipment=shipment,
         processing=register_process,
+        result=(json.loads(row.get("result")) if isinstance(row.get("result"), str) else row.get("result")),
         externalId=row.get("external_id"),
         originalText=row.get("original_text"),
         createdAt=row.get("created_at"),
@@ -165,7 +166,7 @@ async def update_register_process_status_by_processing_id(processing_id: UUID, s
             return None
         register_id = row.get("register_process_id")
         if register_id:
-            return await conn.execute("UPDATE register_process SET status = $1, updated_at = now() WHERE id = $2", status, register_id)
+            return await conn.execute("UPDATE processing SET status = $1, updated_at = now() WHERE id = $2", status, register_id)
     return None
 
 

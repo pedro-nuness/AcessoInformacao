@@ -51,5 +51,6 @@ class RegisterProcessEvent(BaseModel):
     processing: Processing = Field(default_factory=Processing)
     externalId: Optional[str] = None
     originalText: str
+    result: Optional[dict] = None
     createdAt: datetime = Field(default_factory=datetime.utcnow)
     updatedAt: datetime = Field(default_factory=datetime.utcnow)

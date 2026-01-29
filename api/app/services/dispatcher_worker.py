@@ -3,6 +3,8 @@ import os
 import json
 import time
 import aiohttp
+import logging
+import traceback
 from app.core.db import init_db
 from app.models import Status, ShipmentStatus, RegisterProcessStatus
 from app.repository import (
@@ -96,51 +98,77 @@ async def dispatch_pending():
             shipment = row["shipment"]
 
             if not WEBHOOK_URL:
-                print("WEBHOOK_URL not configured; skipping dispatch")
+                logging.warning("WEBHOOK_URL not configured; skipping dispatch")
                 break
 
             if not cb.allow():
-                print(f"Circuit open; skipping dispatch for id={proc_id}")
+                logging.info(f"Circuit open; skipping dispatch for id={proc_id}")
+                continue
+
+            # mark processing as on_shipment
+            try:
+                await update_status(proc_id, Status.ON_SHIPMENT.value)
+            except Exception:
+                logging.exception(f"Failed to mark processing {proc_id} as ON_SHIPMENT")
+
+            # prepare payload ensuring UUIDs are converted to strings
+            payload = {"id": str(proc_id), "result": result, "shipment": shipment}
+            try:
+                payload_json = json.dumps(payload, default=str)
+            except Exception as ser_e:
+                logging.exception(f"Failed to JSON-serialize payload for id={proc_id}: {ser_e}")
+                # persist retryable error and continue
+                try:
+                    await set_shipment_status_by_processing_id(proc_id, ShipmentStatus.ERROR_RETRY.value, increment_attempt=True)
+                    await update_status(proc_id, Status.ERROR.value)
+                    await update_register_process_status_by_processing_id(proc_id, RegisterProcessStatus.ERROR_RETRY.value)
+                except Exception:
+                    logging.exception(f"Failed to persist serialization error state for id={proc_id}")
+                cb.record_failure()
                 continue
 
             try:
-                # mark processing as on_shipment
-                await update_status(proc_id, Status.ON_SHIPMENT.value)
-
                 async with aiohttp.ClientSession() as session:
-                    resp = await session.post(WEBHOOK_URL, json={"id": str(proc_id), "result": result, "shipment": shipment})
+                    headers = {"Content-Type": "application/json"}
+                    resp = await session.post(WEBHOOK_URL, data=payload_json, headers=headers)
+                    resp_text = await resp.text()
                     if 200 <= resp.status < 300:
                         await mark_shipment_sent(proc_id)
                         # finalize processing
                         await update_status(proc_id, Status.FINISHED.value)
                         await update_register_process_status_by_processing_id(proc_id, RegisterProcessStatus.COMPLETED.value)
                         cb.record_success()
-                        print(f"Dispatched shipment for id={proc_id}")
+                        logging.info(f"Dispatched shipment for id={proc_id}: status={resp.status}")
                     else:
                         # non-2xx responses count as failures
                         cb.record_failure()
+                        logging.error(f"Dispatch failed for id={proc_id}: status={resp.status}, body={resp_text}, CB={cb.state}")
                         # 5xx -> retryable
                         if resp.status >= 500:
-                            await set_shipment_status_by_processing_id(proc_id, ShipmentStatus.ERROR_RETRY.value, increment_attempt=True)
-                            await update_status(proc_id, Status.ERROR.value)
-                            await update_register_process_status_by_processing_id(proc_id, RegisterProcessStatus.ERROR_RETRY.value)
-                            print(f"Dispatch error (retryable) id={proc_id}: status {resp.status} (CB state={cb.state})")
+                            try:
+                                await set_shipment_status_by_processing_id(proc_id, ShipmentStatus.ERROR_RETRY.value, increment_attempt=True)
+                                await update_status(proc_id, Status.ERROR.value)
+                                await update_register_process_status_by_processing_id(proc_id, RegisterProcessStatus.ERROR_RETRY.value)
+                            except Exception:
+                                logging.exception(f"Failed to persist retryable error state for id={proc_id}")
                         else:
                             # 4xx -> fatal
-                            await set_shipment_status_by_processing_id(proc_id, ShipmentStatus.ERROR_FATAL.value, increment_attempt=False)
-                            await update_status(proc_id, Status.ERROR.value)
-                            await update_register_process_status_by_processing_id(proc_id, RegisterProcessStatus.ERROR_FATAL.value)
-                            print(f"Dispatch error (fatal) id={proc_id}: status {resp.status} (CB state={cb.state})")
+                            try:
+                                await set_shipment_status_by_processing_id(proc_id, ShipmentStatus.ERROR_FATAL.value, increment_attempt=False)
+                                await update_status(proc_id, Status.ERROR.value)
+                                await update_register_process_status_by_processing_id(proc_id, RegisterProcessStatus.ERROR_FATAL.value)
+                            except Exception:
+                                logging.exception(f"Failed to persist fatal error state for id={proc_id}")
             except Exception as e:
                 cb.record_failure()
+                logging.exception(f"Exception while dispatching id={proc_id}: {e} (CB state={cb.state})")
                 # network/exception -> treat as retryable
                 try:
                     await set_shipment_status_by_processing_id(proc_id, ShipmentStatus.ERROR_RETRY.value, increment_attempt=True)
                     await update_status(proc_id, Status.ERROR.value)
                     await update_register_process_status_by_processing_id(proc_id, RegisterProcessStatus.ERROR_RETRY.value)
                 except Exception:
-                    print(f"Failed to persist error state for id={proc_id}")
-                print(f"Exception dispatching id={proc_id}: {e} (CB state={cb.state})")
+                    logging.exception(f"Failed to persist error state for id={proc_id}")
 
         await asyncio.sleep(DISPATCH_INTERVAL)
 
