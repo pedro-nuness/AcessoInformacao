@@ -2,6 +2,6 @@ from typing import Dict
 
 
 async def analyze_text(text: str) -> Dict:
-    return {"summary": text[:200], "length": len(text)}
-def analyze_text(text: str) -> dict:
-    return {"confidence": 0.95, "data": {"summary": "This is a summary of the text."}}
+    # Async implementation for compatibility with worker await
+    # Return structure matches Result model: confidence and data
+    return {"confidence": 0.95, "data": {"summary": text[:200] if text else "", "length": len(text) if text else 0}}

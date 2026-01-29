@@ -47,13 +47,13 @@ def row_to_model(row) -> Optional[RegisterProcessEvent]:
     )
 
 
-async def create_processing(original_text: str) -> UUID:
+async def create_processing(original_text: str, external_id: Optional[str] = None) -> UUID:
     db = await DBService.get()
     async with db.pool.acquire() as conn:
         async with conn.transaction():
-            # create register_process
+            # create processing (was register_process)
             register_id = await conn.fetchval(
-                "INSERT INTO register_process(status, attempt_count, created_at, updated_at) VALUES($1, $2, now(), now()) RETURNING id",
+                "INSERT INTO processing(status, attempt_count, created_at, updated_at) VALUES($1, $2, now(), now()) RETURNING id",
                 RegisterProcessStatus.NOT_QUEUED.value,
                 0,
             )
@@ -65,8 +65,9 @@ async def create_processing(original_text: str) -> UUID:
             )
             # create processing_status
             proc_id = await conn.fetchval(
-                "INSERT INTO processing_status(original_text, status, register_process_id, shipment_id, created_at, updated_at) VALUES($1, $2, $3, $4, now(), now()) RETURNING id",
+                "INSERT INTO register_process_event(original_text, external_id, status, register_process_id, shipment_id, created_at, updated_at) VALUES($1, $2, $3, $4, $5, now(), now()) RETURNING id",
                 original_text,
+                external_id,
                 Status.RECEIVED.value,
                 register_id,
                 shipment_id,
@@ -77,7 +78,7 @@ async def create_processing(original_text: str) -> UUID:
 async def get_processing(id: UUID) -> Optional[RegisterProcessEvent]:
     db = await DBService.get()
     row = await db.fetchrow(
-        "SELECT p.*, r.status as register_status, r.attempt_count as register_attempt_count, r.id as register_process_id, s.status as shipment_status, s.attempt_count as shipment_attempt_count, s.id as shipment_id FROM processing_status p LEFT JOIN register_process r ON r.id = p.register_process_id LEFT JOIN shipment s ON s.id = p.shipment_id WHERE p.id = $1",
+        "SELECT p.*, r.status as register_status, r.attempt_count as register_attempt_count, r.id as register_process_id, s.status as shipment_status, s.attempt_count as shipment_attempt_count, s.id as shipment_id FROM register_process_event p LEFT JOIN processing r ON r.id = p.register_process_id LEFT JOIN shipment s ON s.id = p.shipment_id WHERE p.id = $1",
         id,
     )
     if not row:
@@ -87,7 +88,7 @@ async def get_processing(id: UUID) -> Optional[RegisterProcessEvent]:
 
 async def update_status(id: UUID, status: str):
     db = await DBService.get()
-    return await db.execute("UPDATE processing_status SET status = $1, updated_at = now() WHERE id = $2", status, id)
+    return await db.execute("UPDATE register_process_event SET status = $1, updated_at = now() WHERE id = $2", status, id)
 
 
 async def update_result(id: UUID, result: dict):
@@ -97,14 +98,14 @@ async def update_result(id: UUID, result: dict):
     db = await DBService.get()
     async with db.pool.acquire() as conn:
         async with conn.transaction():
-            row = await conn.fetchrow("SELECT register_process_id, shipment_id FROM processing_status WHERE id = $1", id)
+            row = await conn.fetchrow("SELECT register_process_id, shipment_id FROM register_process_event WHERE id = $1", id)
             if not row:
                 return None
             register_id = row.get("register_process_id")
             shipment_id = row.get("shipment_id")
 
             await conn.execute(
-                "UPDATE processing_status SET status = $1, result = $2::jsonb, updated_at = now() WHERE id = $3",
+                "UPDATE register_process_event SET status = $1, result = $2::jsonb, updated_at = now() WHERE id = $3",
                 Status.READY_TO_SHIP.value,
                 json.dumps(result, default=str),
                 id,
@@ -112,9 +113,9 @@ async def update_result(id: UUID, result: dict):
 
             if register_id:
                 await conn.execute(
-                    "UPDATE register_process SET status = $1, updated_at = now() WHERE id = $2",
-                    RegisterProcessStatus.COMPLETED.value,
-                    register_id,
+                    "UPDATE processing SET status = $1, updated_at = now() WHERE id = $2",
+                        RegisterProcessStatus.COMPLETED.value,
+                        register_id,
                 )
 
             if shipment_id:
@@ -129,7 +130,7 @@ async def update_result(id: UUID, result: dict):
 async def fetch_pending_shipments() -> List[Dict]:
     db = await DBService.get()
     rows = await db.fetch(
-        "SELECT p.id as processing_id, p.result, s.id as shipment_id, s.status as shipment_status, s.attempt_count as shipment_attempt_count FROM processing_status p JOIN shipment s ON s.id = p.shipment_id WHERE s.status != 'sent' AND p.result IS NOT NULL"
+        "SELECT p.id as processing_id, p.result, s.id as shipment_id, s.status as shipment_status, s.attempt_count as shipment_attempt_count FROM register_process_event p JOIN shipment s ON s.id = p.shipment_id WHERE s.status != 'sent' AND p.result IS NOT NULL"
     )
     out = []
     for r in rows:
@@ -146,10 +147,56 @@ async def fetch_pending_shipments() -> List[Dict]:
 async def mark_shipment_sent(processing_id: UUID):
     db = await DBService.get()
     async with db.pool.acquire() as conn:
-        row = await conn.fetchrow("SELECT shipment_id FROM processing_status WHERE id = $1", processing_id)
+        row = await conn.fetchrow("SELECT shipment_id FROM register_process_event WHERE id = $1", processing_id)
         if not row:
             return None
         shipment_id = row.get("shipment_id")
         if shipment_id:
             return await conn.execute("UPDATE shipment SET status = $1, updated_at = now() WHERE id = $2", ShipmentStatus.SENT.value, shipment_id)
     return None
+
+
+async def update_register_process_status_by_processing_id(processing_id: UUID, status: str):
+    """Update register_process.status given a processing_status id."""
+    db = await DBService.get()
+    async with db.pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT register_process_id FROM register_process_event WHERE id = $1", processing_id)
+        if not row:
+            return None
+        register_id = row.get("register_process_id")
+        if register_id:
+            return await conn.execute("UPDATE register_process SET status = $1, updated_at = now() WHERE id = $2", status, register_id)
+    return None
+
+
+async def set_shipment_status_by_processing_id(processing_id: UUID, shipment_status: str, increment_attempt: bool = False):
+    """Set shipment.status (and optionally increment attempt_count) for the shipment related to processing_status id."""
+    db = await DBService.get()
+    async with db.pool.acquire() as conn:
+        async with conn.transaction():
+            row = await conn.fetchrow("SELECT shipment_id FROM register_process_event WHERE id = $1", processing_id)
+            if not row:
+                return None
+            shipment_id = row.get("shipment_id")
+            if not shipment_id:
+                return None
+            if increment_attempt:
+                return await conn.execute(
+                    "UPDATE shipment SET status = $1, attempt_count = COALESCE(attempt_count,0) + 1, updated_at = now() WHERE id = $2",
+                    shipment_status,
+                    shipment_id,
+                )
+            else:
+                return await conn.execute(
+                    "UPDATE shipment SET status = $1, updated_at = now() WHERE id = $2",
+                    shipment_status,
+                    shipment_id,
+                )
+
+
+async def get_shipment_attempts_by_processing_id(processing_id: UUID):
+    db = await DBService.get()
+    row = await db.fetchrow("SELECT s.attempt_count as shipment_attempt_count FROM register_process_event p JOIN shipment s ON s.id = p.shipment_id WHERE p.id = $1", processing_id)
+    if not row:
+        return None
+    return row.get("shipment_attempt_count")

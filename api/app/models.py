@@ -17,7 +17,6 @@ class RegisterProcessStatus(str, Enum):
 class ShipmentStatus(str, Enum):
     NOT_READY = "not_ready"         # Ainda processando IA
     READY = "ready"                 # Pronto para o Dispatcher pegar
-    SENDING = "sending"             # (Opcional) Para evitar race conditions se tiver múltiplos dispatchers
     SENT = "sent"                   # Webhook recebeu 200 OK
     ERROR_RETRY = "error_retry"     # Erro 500 ou timeout (Circuit Breaker atua aqui)
     ERROR_FATAL = "error_fatal"     # Erro 4xx ou max_retries excedido
