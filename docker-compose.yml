@@ -52,6 +52,21 @@ services:
       - postgres
       - rabbitmq
     restart: unless-stopped
+  dispatcher:
+    build:
+      context: ./api
+    command: ["python", "-m", "app.services.dispatcher_worker"]
+    volumes:
+      - ./api:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - RABBIT_URL=amqp://${RABBIT_USER:-guest}:${RABBIT_PASSWORD:-guest}@rabbitmq:5672/
+      - WEBHOOK_URL=${WEBHOOK_URL}
+      - DISPATCH_INTERVAL=30
+    depends_on:
+      - postgres
+    restart: unless-stopped
 
 volumes:
   rabbitmq-data:

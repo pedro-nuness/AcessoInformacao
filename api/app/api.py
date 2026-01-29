@@ -37,9 +37,8 @@ async def shutdown_event():
 
 @app.post("/processing")
 async def create_processing(req: CreateRequest):
-    global _pool
-    async with _pool.acquire() as conn:
-        id = await repository.create_processing(conn, req.originalText)
+    # create processing entry (repository will create register_process and shipment)
+    id = await repository.create_processing(req.originalText)
     # publish to queue
     channel = _rabbit[1]
     await publish_message(channel, "processing_queue", json.dumps({"id": str(id), "originalText": req.originalText}).encode())
@@ -48,9 +47,7 @@ async def create_processing(req: CreateRequest):
 
 @app.get("/processing/{id}")
 async def get_processing(id: UUID):
-    global _pool
-    async with _pool.acquire() as conn:
-        model = await repository.get_processing(conn, id)
+    model = await repository.get_processing(id)
     if not model:
         raise HTTPException(status_code=404, detail="Not found")
     return model.dict()

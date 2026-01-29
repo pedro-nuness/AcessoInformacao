@@ -17,9 +17,12 @@ async def init_db(retries: int = 8, delay: float = 1.0):
     if _pool is not None:
         return _pool
     last_exc = None
+    # Allow controlling pool size via env vars to avoid exhausting Postgres max_connections
+    min_size = int(os.getenv("DB_POOL_MIN", "1"))
+    max_size = int(os.getenv("DB_POOL_MAX", "5"))
     for attempt in range(retries):
         try:
-            _pool = await asyncpg.create_pool(DATABASE_URL)
+            _pool = await asyncpg.create_pool(DATABASE_URL, min_size=min_size, max_size=max_size)
             # Run migrations if present
             migrations = Path(__file__).parents[2] / "migrations" / "processing_init.sql"
             if migrations.exists():

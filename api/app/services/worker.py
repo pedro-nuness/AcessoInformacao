@@ -1,9 +1,11 @@
 import asyncio
 import json
 from aio_pika import IncomingMessage
-from app.core.db import init_db, get_pool
+from app.core.db import init_db
+from app.models import Status
 from app.services.ai_analyzer import analyze_text
 from app.core import mq
+from app.repository import update_status, update_result
 
 
 async def handle_message(message: IncomingMessage):
@@ -12,28 +14,14 @@ async def handle_message(message: IncomingMessage):
         id = body.get("id")
         original_text = body.get("originalText") or body.get("original_text")
 
-        pool = get_pool()
-        if pool is None:
-            # initialize if not yet initialized
-            await init_db()
-            pool = get_pool()
-
-        async with pool.acquire() as conn:
-            await conn.execute(
-                "UPDATE processing_status SET status = $1, updated_at = now() WHERE id = $2",
-                'processing',
-                id,
-            )
+        # Ensure DB initialized and use centralized repository functions
+        await init_db()
+        await update_status(id, Status.PROCESSING.value if hasattr(Status, 'PROCESSING') else 'processing')
 
         result = await analyze_text(original_text)
 
-        async with pool.acquire() as conn:
-            await conn.execute(
-                "UPDATE processing_status SET status = $1, result = $2::jsonb, updated_at = now() WHERE id = $3",
-                'completed',
-                json.dumps(result, default=str),
-                id,
-            )
+        # update_result will set processing status -> ready_to_ship, register_process -> completed, shipment -> ready
+        await update_result(id, result)
 
 
 async def run_worker():
