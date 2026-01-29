@@ -1,3 +1,4 @@
 .env
 postgres-data/
 n8n-data/
+__pycache__/
