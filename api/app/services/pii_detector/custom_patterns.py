@@ -29,7 +29,7 @@ class CpfRecognizer(PatternRecognizer):
         patterns = [
             Pattern(
                 name="cpf_pattern",
-                regex=r"\b\d{3}\.\d{3}\.\d{3}-\d{2}\b",
+                regex=r"\b\d{3}[\s.-]?\d{3}[\s.-]?\d{3}[\s.-]?\d{2}\b",
                 score=0.85
             )
         ]
@@ -42,6 +42,8 @@ class CpfRecognizer(PatternRecognizer):
         )
 
     def validate_result(self, pattern_text: str) -> bool:
+        result = self.cpf_validator.validate(pattern_text)
+        print(f'pattern_text + {result}')
         return self.cpf_validator.validate(pattern_text)
 
 class CnsRecognizer(PatternRecognizer):
@@ -178,7 +180,7 @@ class PasswordRecognizer(PatternRecognizer):
         patterns = [
             Pattern(
                 name="password_pattern", 
-                regex=r"(?i)\b(?:senha|password|passwd|pin|secret|token)\b\s*(?:[:=]|\b(?:é|is)\b)?\s*(\S+)",
+                regex=r"(?i)\b(?:senha|password|passwd|pin|secret|token)\b\s*(?:[:=]|\b(?:é|is)\b)?\s*([^\s.,]+)",
                 score=1)
         ]
         
@@ -206,7 +208,6 @@ class CustomEmailRecognizer(PatternRecognizer):
         )
 
 
-
 RECOGNIZERS = [
     CpfRecognizer(),
     CnpjRecognizer(),
@@ -215,6 +216,6 @@ RECOGNIZERS = [
     PisRecognizer(),
     RenavamRecognizer(),
     CnsRecognizer(),
-    # PasswordRecognizer(),
+    PasswordRecognizer(),
     CustomEmailRecognizer()
 ]
