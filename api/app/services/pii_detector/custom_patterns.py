@@ -206,7 +206,6 @@ class CustomEmailRecognizer(PatternRecognizer):
         )
 
 
-
 RECOGNIZERS = [
     CpfRecognizer(),
     CnpjRecognizer(),

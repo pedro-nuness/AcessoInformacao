@@ -1,8 +1,8 @@
 from presidio_analyzer import AnalyzerEngine, RecognizerRegistry
 from presidio_analyzer.nlp_engine import NlpEngineProvider
 from presidio_anonymizer import AnonymizerEngine
-from settings import SPACY_CONFIG
-from custom_patterns import RECOGNIZERS
+from app.services.pii_detector.settings import SPACY_CONFIG
+from app.services.pii_detector.custom_patterns import RECOGNIZERS
 
 class PIIScanner:
 
