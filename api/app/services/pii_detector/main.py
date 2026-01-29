@@ -4,14 +4,26 @@ def main():
     scanner = PIIScanner()
 
     test_text = """
-    Relatório de Incidente:
-    Ocorreu um acidente com o veículo de placa ABC-1234.
-    O suspeito fugiu no Fiat Uno, placa ABC1C34.
-    O CPF do envolvido é 123.456.789-00
-    Contato: joao.silva@email.com.
-    Para acessar o sistema, a senha: SuperSecreta123!. Mas essa parte aaqui não é uma senha ok?
-    Para acessar o sistema: ph050206
-    O nome do solicitante é Maria Souza.
+    O sr. Carlos tem a CNH número 98048995304.
+    Ele dirige o caminhão de placa GRA-1234, mas as vezes usa a moto placa MER1C23.
+    O RENAVAM do caminhão é 00639884965. 
+    Nota: O antigo renavam 11111111111 parece errado (dígito inválido).
+
+    O CPF do titular é 704.167.350-20. 
+    Em alguns lugares digitaram sem ponto: 70416735020.
+    Cuidado, pois temos um CPF falso na base: 123.456.789-00 (esse não deve passar!).
+    O PIS dele para o abono é 120.5235.347-6.
+    Título de Eleitor para votação: 063462630329.
+
+    O número do cartão CNS é 700001854833215.
+    Favor verificar no cadastro do hospital.
+
+    A empresa contratante é a Google Brasil, CNPJ 06.990.590/0001-23.
+    Outro CNPJ que apareceu foi o 33649575000199 (sem formatação).
+
+    O e-mail para login é: admin.suporte@empresa.com.br
+    Para o primeiro acesso, a senha é: Segredo@2024!
+    Não compartilhar a senha provisória.
     """
 
     resultados = scanner.analyze_text(test_text)

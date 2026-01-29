@@ -2,7 +2,7 @@ from presidio_analyzer import AnalyzerEngine, RecognizerRegistry
 from presidio_analyzer.nlp_engine import NlpEngineProvider
 from presidio_anonymizer import AnonymizerEngine
 from settings import SPACY_CONFIG
-from custom_patterns import *
+from custom_patterns import RECOGNIZERS
 
 class PIIScanner:
 
@@ -13,12 +13,9 @@ class PIIScanner:
 
         registry = RecognizerRegistry()
         registry.load_predefined_recognizers()
-
-        recognizers = [CpfRecognizer(), CnpjRecognizer(), PasswordRecognizer(), CarPlateRecognizer()]
         
-        for recognizer in recognizers:
+        for recognizer in RECOGNIZERS:
             registry.add_recognizer(recognizer)
-
 
         self.analyzer = AnalyzerEngine(registry=registry, nlp_engine=nlp_engine)
         self.anonymizer = AnonymizerEngine()
