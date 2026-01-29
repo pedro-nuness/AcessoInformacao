@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.db import init_db, close_db
 from app.core.mq import init_rabbit, close_rabbit, publish_message
 from app import repository
+from typing import Optional
 from pydantic import BaseModel
 from uuid import UUID
 import asyncio
@@ -11,6 +12,7 @@ import json
 
 class CreateRequest(BaseModel):
     originalText: str
+    externalId: Optional[str] = None
 
 
 app = FastAPI()
@@ -37,20 +39,21 @@ async def shutdown_event():
 
 @app.post("/processing")
 async def create_processing(req: CreateRequest):
-    global _pool
-    async with _pool.acquire() as conn:
-        id = await repository.create_processing(conn, req.originalText)
-    # publish to queue
+    # create processing entry (repository will create register_process and shipment)
+    id = await repository.create_processing(req.originalText, req.externalId)
+    # publish to queue (do NOT include externalId; keep it only in DB)
     channel = _rabbit[1]
     await publish_message(channel, "processing_queue", json.dumps({"id": str(id), "originalText": req.originalText}).encode())
-    return {"id": str(id)}
+    # return the full object as the user requested
+    model = await repository.get_processing(id)
+    if not model:
+        return {"id": str(id)}
+    return model.dict()
 
 
 @app.get("/processing/{id}")
 async def get_processing(id: UUID):
-    global _pool
-    async with _pool.acquire() as conn:
-        model = await repository.get_processing(conn, id)
+    model = await repository.get_processing(id)
     if not model:
         raise HTTPException(status_code=404, detail="Not found")
     return model.dict()
