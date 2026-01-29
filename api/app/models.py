@@ -35,7 +35,7 @@ class Shipment(BaseModel):
     status: ShipmentStatus = ShipmentStatus.NOT_READY
     attemptCount: int = 0
 
-class RegisterProcess(BaseModel):
+class Processing(BaseModel):
     id: UUID = Field(default_factory=uuid4)
     status: RegisterProcessStatus = RegisterProcessStatus.NOT_QUEUED
     attemptCount: int = 0
@@ -48,7 +48,7 @@ class RegisterProcessEvent(BaseModel):
     id: UUID = Field(default_factory=uuid4)
     status: Status = Status.RECEIVED
     shipment: Shipment = Field(default_factory=Shipment)
-    registerProcess : RegisterProcess = Field(default_factory=RegisterProcess)
+    processing: Processing = Field(default_factory=Processing)
     externalId: Optional[str] = None
     originalText: str
     createdAt: datetime = Field(default_factory=datetime.utcnow)

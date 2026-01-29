@@ -7,7 +7,7 @@ from app.models import (
     Status,
     ShipmentStatus,
     Shipment,
-    RegisterProcess,
+    Processing,
 )
 from app.core.db_service import DBService
 
@@ -27,19 +27,19 @@ def row_to_model(row) -> Optional[RegisterProcessEvent]:
 
     register_process = None
     if row.get("register_process_id"):
-        register_process = RegisterProcess(
+        register_process = Processing(
             id=row.get("register_process_id"),
             status=RegisterProcessStatus(row.get("register_status")),
             attemptCount=row.get("register_attempt_count") or 0,
         )
     else:
-        register_process = RegisterProcess()
+        register_process = Processing()
 
     return RegisterProcessEvent(
         id=row["id"],
         status=Status(row.get("status")) if row.get("status") is not None else Status.RECEIVED,
         shipment=shipment,
-        registerProcess=register_process,
+        processing=register_process,
         externalId=row.get("external_id"),
         originalText=row.get("original_text"),
         createdAt=row.get("created_at"),
