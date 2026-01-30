@@ -4,15 +4,14 @@ from presidio_anonymizer import AnonymizerEngine
 from app.services.pii_detector.settings import SPACY_CONFIG
 from app.services.pii_detector.custom_patterns import RECOGNIZERS
 
-class PIIScanner:
-
+class PIIPresidioScanner:
     def __init__(self):
 
         provider = NlpEngineProvider(nlp_configuration=SPACY_CONFIG)
         nlp_engine = provider.create_engine()
 
         registry = RecognizerRegistry()
-        registry.load_predefined_recognizers()
+        registry.load_predefined_recognizers(languages=["pt"])
         
         for recognizer in RECOGNIZERS:
             registry.add_recognizer(recognizer)
@@ -21,9 +20,8 @@ class PIIScanner:
         self.anonymizer = AnonymizerEngine()
 
     def analyze_text(self, text):
-        """Retorna a lista de entidades encontradas"""
-        return self.analyzer.analyze(text=text, language='pt')
-
-    def anonymize_text(self, text, results):
-        """Retorna o texto anonimizado"""
-        return self.anonymizer.anonymize(text=text, analyzer_results=results)
+        return self.analyzer.analyze(
+            text=text, 
+            language='pt',
+            score_threshold=0.4
+        )

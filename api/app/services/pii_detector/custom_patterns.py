@@ -1,6 +1,41 @@
 from presidio_analyzer import Pattern, PatternRecognizer
 from validate_docbr import CNPJ, CPF, CNS, CNH, PIS, RENAVAM, TituloEleitoral
 
+
+class RgRecognizer(PatternRecognizer):
+    def __init__(self):
+        patterns = [
+            Pattern(
+                name="rg_pattern",
+                regex=r"\b\d{1,2}[\s.]?\d{3}[\s.]?\d{3}[\s-]?[\dX|dx]\b",
+                score=0.4
+            )
+        ]
+        
+        super().__init__(
+            supported_entity="RG",
+            patterns=patterns,
+            context=["rg", "registro", "geral", "identidade", "ssp", "emissor", "documento"],
+            supported_language="pt"
+        )
+
+class PhoneRecognizer(PatternRecognizer):
+    def __init__(self):
+        patterns = [
+            Pattern(
+                name="br_phone_pattern",
+                regex=r"\b(?:\(?\d{2}\)?\s?)?(?:9\s?)?\d{4}[\s-]?\d{4}\b",
+                score=0.5
+            )
+        ]
+        
+        super().__init__(
+            supported_entity="PHONE_NUMBER",
+            patterns=patterns,
+            context=["celular", "fone", "telefone", "zap", "whatsapp", "contato", "ligar", "tel"],
+            supported_language="pt"
+        )
+
 class CnpjRecognizer(PatternRecognizer):
     def __init__(self):
         self.cnpj_validator = CNPJ()
@@ -209,13 +244,8 @@ class CustomEmailRecognizer(PatternRecognizer):
 
 
 RECOGNIZERS = [
+    PhoneRecognizer(),
+    RgRecognizer(),
     CpfRecognizer(),
-    CnpjRecognizer(),
-    CnhRecognizer(),
-    TituloEleitoralRecognizer(),
-    PisRecognizer(),
-    RenavamRecognizer(),
-    CnsRecognizer(),
-    PasswordRecognizer(),
     CustomEmailRecognizer()
 ]

@@ -1,34 +1,29 @@
 import asyncio
 from typing import Dict
-from app.services.pii_detector.scanner import PIIScanner
+from app.services.pii_detector.gemma_scanner import PIIGemmaScanner
+from app.services.pii_detector.presidio_scanner import PIIPresidioScanner
 
-GLOBAL_SCANNER = PIIScanner()
+GLOBAL_GEMMA_SCANNER = PIIGemmaScanner()
+GLOBAL_PRESIDIO_SCANNER = PIIPresidioScanner()
 
-async def analyze_text(text: str) -> Dict:
-    pii_results = await asyncio.to_thread(GLOBAL_SCANNER.analyze_text, text)
+async def analyze_text(text: str) -> dict:
+    presidio_results = GLOBAL_PRESIDIO_SCANNER.analyze_text(text)
 
-    anonymized_result = await asyncio.to_thread(
-        GLOBAL_SCANNER.anonymize_text, 
-        text, 
-        pii_results
-    )
-
-    detections = [
-        {
-            "type": res.entity_type,
-            "score": round(res.score, 2),
-            "start": res.start,
-            "end": res.end,
-            "value": text[res.start:res.end] 
+    if len(presidio_results) > 0:
+        entidades = sorted(list(set(res.entity_type for res in presidio_results)))
+        
+        return {
+            "result": "PRIVATE",
+            "details": f"Identificado pelo Presidio: {', '.join(entidades)}"
         }
-        for res in pii_results
-    ]
+    
+    # segunda verificação com o Gemma, isso caso o presidio não encontre nada
+    raw_gemma_response = await GLOBAL_GEMMA_SCANNER.analyze_text(text)
+    
+    should_be_private = raw_gemma_response.upper().startswith('Y')
+    reason = raw_gemma_response[2:].strip() if len(raw_gemma_response) > 1 else "Não especificado"
 
     return {
-        "summary": text[:100] + "..." if len(text) > 100 else text,
-        "length": len(text),
-        "pii_count": len(pii_results),
-        "pii_detected": detections,
-        "anonymized_text": anonymized_result.text
+        "result": "PRIVATE" if should_be_private else "PUBLIC",
+        "details": reason if should_be_private else "Texto analisado e classificado como seguro."
     }
-

@@ -1,4 +1,16 @@
 services:
+  ollama:
+      image: ollama/ollama:latest
+      container_name: ollama
+      restart: unless-stopped
+      volumes:
+        - ollama-data:/root/.ollama
+      entrypoint: /bin/sh
+      command: -c "ollama serve & sleep 10 && ollama pull gemma3:4b && wait"
+      ports:
+        - "11434:11434"
+      environment:
+        OLLAMA_HOST: ${OLLAMA_HOST}
   postgres:
     image: postgres:14-alpine
     restart: unless-stopped
@@ -70,3 +82,4 @@ services:
 
 volumes:
   rabbitmq-data:
+  ollama-data:
