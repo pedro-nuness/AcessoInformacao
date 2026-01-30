@@ -21,6 +21,8 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - DB_POOL_MIN=1
+      - DB_POOL_MAX=20
       - RABBIT_URL=amqp://${RABBIT_USER:-guest}:${RABBIT_PASSWORD:-guest}@rabbitmq:5672/
     restart: unless-stopped
     depends_on:
@@ -37,6 +39,12 @@ services:
       RABBITMQ_DEFAULT_PASS: ${RABBIT_PASSWORD:-guest}
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 10s
 
   worker:
     build:
@@ -47,7 +55,10 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - DB_POOL_MIN=1
+      - DB_POOL_MAX=10
       - RABBIT_URL=amqp://${RABBIT_USER:-guest}:${RABBIT_PASSWORD:-guest}@rabbitmq:5672/
+      - RABBIT_PREFETCH=3
     depends_on:
       - postgres
       - rabbitmq
@@ -61,11 +72,14 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - DB_POOL_MIN=1
+      - DB_POOL_MAX=5
       - RABBIT_URL=amqp://${RABBIT_USER:-guest}:${RABBIT_PASSWORD:-guest}@rabbitmq:5672/
       - WEBHOOK_URL=${WEBHOOK_URL}
       - DISPATCH_INTERVAL=30
     depends_on:
       - postgres
+      - rabbitmq
     restart: unless-stopped
 
 volumes:

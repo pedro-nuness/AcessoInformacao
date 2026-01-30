@@ -4,14 +4,12 @@ import { Trend, Counter } from 'k6/metrics';
 import { uuidv4 } from 'https://jslib.k6.io/k6-utils/1.4.0/index.js';
 import { BASE_PAYLOAD } from './load_data.js';
 
-// ================= CONFIG =================
 const BASE_URL = 'http://192.168.1.108:8000/processing';
 
 const POLL_INTERVAL = 0.5; // seconds
 const POLL_TIMEOUT = 20;   // seconds
 const TARGET_STATUS = 'ready';
 
-// ================= METRICS =================
 export const postLatency = new Trend('latency_post', true);
 export const e2eLatency = new Trend('latency_e2e', true);
 export const pollCount = new Trend('poll_count', false);
@@ -19,7 +17,6 @@ export const pollCount = new Trend('poll_count', false);
 export const completed = new Counter('completed');
 export const failed = new Counter('failed');
 
-// ================= SCENARIO =================
 export const options = {
   scenarios: {
     load_test: {
@@ -38,8 +35,6 @@ export const options = {
   },
 };
 
-
-// ================= TEST =================
 export default function () {
   const payload = Object.assign({}, BASE_PAYLOAD);
   payload.externalId += uuidv4();
@@ -47,7 +42,6 @@ export default function () {
 
   const startE2E = Date.now();
 
-  // -------- PHASE 1: POST --------
   const postStart = Date.now();
   const postRes = http.post(
     BASE_URL,
@@ -70,7 +64,6 @@ export default function () {
     return;
   }
 
-  // -------- PHASE 2: POLLING --------
   let polls = 0;
   const pollStart = Date.now();
 

@@ -5,7 +5,6 @@ import time
 import aiohttp
 import logging
 import traceback
-from app.core.db import init_db
 from app.models import Status, ShipmentStatus, RegisterProcessStatus
 from app.repository import (
     fetch_pending_shipments,
@@ -79,7 +78,6 @@ class CircuitBreaker:
         return self._state
 
 async def dispatch_pending():
-    await init_db()
     cb = CircuitBreaker(
         failure_threshold=CB_FAILURE_THRESHOLD,
         recovery_timeout=CB_RECOVERY_TIMEOUT,

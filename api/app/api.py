@@ -1,7 +1,12 @@
 from fastapi import FastAPI, Depends, HTTPException
+from fastapi.responses import JSONResponse
+import logging
+import time
 from fastapi.middleware.cors import CORSMiddleware
-from app.core.db import init_db, close_db
 from app.core.mq import init_rabbit, close_rabbit, publish_message
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
+from app.core.db import db_manager
 from app import repository
 from typing import Optional
 from pydantic import BaseModel
@@ -9,51 +14,63 @@ from uuid import UUID
 import asyncio
 import json
 
-
 class CreateRequest(BaseModel):
     originalText: str
     externalId: Optional[str] = None
 
-
-app = FastAPI()
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
-
-_pool = None
 _rabbit = None
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Inicializa recursos de forma centralizada
+    await db_manager.connect()  
+    global _rabbit
+    _rabbit = await init_rabbit()         
+    yield
+    # Limpeza graciosa no desligamento
+    _rabbit = await close_rabbit()        
+    await db_manager.disconnect() 
 
-@app.on_event("startup")
-async def startup_event():
-    global _pool, _rabbit
-    _pool = await init_db()
-    _rabbit = await init_rabbit()
+app = FastAPI(lifespan=lifespan)
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+logger = logging.getLogger("processing_api")
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter("%(asctime)s | %(levelname)s: %(message)s"))
+    logger.addHandler(handler)
+logger.setLevel(logging.INFO)
 
 
-@app.on_event("shutdown")
-async def shutdown_event():
-    global _pool, _rabbit
-    if _rabbit:
-        await close_rabbit(_rabbit[0])
-    await close_db(_pool)
-
+async def _bg_publish(conn, payload):
+        try:
+            await publish_message(conn, "processing_queue", payload)
+        except Exception as e:
+            print(f"background publish failed for id={id}: {e}")
 
 @app.post("/processing")
 async def create_processing(req: CreateRequest):
-    # create processing entry (repository will create register_process and shipment)
+    start = time.monotonic()
     id = await repository.create_processing(req.originalText, req.externalId)
-    # publish to queue (do NOT include externalId; keep it only in DB)
-    channel = _rabbit[1]
-    await publish_message(channel, "processing_queue", json.dumps({"id": str(id), "originalText": req.originalText}).encode())
-    # return the full object as the user requested
-    model = await repository.get_processing(id)
-    if not model:
-        return {"id": str(id)}
-    return model.dict()
+    connection = _rabbit[0]
+    
+    message_bytes = json.dumps({"id": str(id), "originalText": req.originalText}).encode()
+    try:
+        asyncio.create_task(_bg_publish(connection, message_bytes))
+    except Exception as e:
+        print(f"failed to schedule background publish for id={id}: {e}")
 
+    logger.info(f"create_processing id={id} duration_ms={(time.monotonic()-start)*1000:.1f} returned=accepted")
+    return JSONResponse(status_code=202, content={"id": str(id)})
+     
 
 @app.get("/processing/{id}")
 async def get_processing(id: UUID):
+    start = time.monotonic()
     model = await repository.get_processing(id)
+    duration_ms = (time.monotonic() - start) * 1000
     if not model:
+        logger.info(f"get_processing id={id} duration_ms={duration_ms:.1f} returned=404")
         raise HTTPException(status_code=404, detail="Not found")
-    return model.dict()
+    logger.info(f"get_processing id={id} duration_ms={duration_ms:.1f} status={model.shipment.status}")
+    return model.model_dump()

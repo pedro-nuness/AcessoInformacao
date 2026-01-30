@@ -1,7 +1,9 @@
 import asyncio
 import json
+import signal
+from venv import logger
 from aio_pika import IncomingMessage
-from app.core.db import init_db
+import asyncpg
 from app.models import Status, RegisterProcessStatus
 from app.services.ai_analyzer import analyze_text
 from app.core import mq
@@ -9,40 +11,53 @@ from app.repository import update_status, update_result, update_register_process
 
 
 async def handle_message(message: IncomingMessage):
-    async with message.process():
-        body = json.loads(message.body.decode())
-        id = body.get("id")
-        original_text = body.get("originalText") or body.get("original_text")
-
-        # Ensure DB initialized and use centralized repository functions
-        await init_db()
-        await update_status(id, Status.PROCESSING.value)
-
+    # use explicit ack/nack handling so we can requeue when Postgres is overloaded
+    async with message.process(): # Gerencia ACK/NACK automaticamente
         try:
-            result = await analyze_text(original_text)
+            body = json.loads(message.body.decode()) 
+            proc_id = body.get("id")
+            text = body.get("originalText") 
+
+            # 1. Marcar como processando
+            await update_status(proc_id, Status.PROCESSING.value)
+
+            # 2. IA - Processamento intensivo fora do loop de IO se necessário
+            result = await analyze_text(text) 
+
+            # 3. Salvar resultado e finalizar
+            await update_result(proc_id, result)
+            
+            logger.info(f"Processed successfully: {proc_id}")
+
         except Exception as e:
-            # On analysis error: mark processing status as waiting human review and register_process as error
-            try:
-                await update_status(id, Status.WAITING_HUMAN_REVIEW.value)
-                await update_register_process_status_by_processing_id(id, RegisterProcessStatus.ERROR_FATAL.value) # fatal error
-            except Exception:
-                # best-effort: log but don't raise further to avoid crashing consumer
-                print(f"Failed to update statuses after analysis error for id={id}")
-            print(f"analyze_text error for id={id}: {e}")
-            return
-        print( f"analyze_text success for id={id}: {result}")
-        # update_result will set processing status -> ready_to_ship, register_process -> completed, shipment -> ready
-        await update_result(id, result)
+            logger.error(f"Error processing {proc_id}: {e}")
 
 async def run_worker():
-    await init_db()
     connection, channel, queue = await mq.init_rabbit()
+
+    # Setup graceful shutdown handling
+    stop_event = asyncio.Event()
+    loop = asyncio.get_running_loop()
+
+    def _set_stop():
+        stop_event.set()
+
+    try:
+        for s in (signal.SIGINT, signal.SIGTERM):
+            try:
+                loop.add_signal_handler(s, _set_stop)
+            except NotImplementedError:
+                # add_signal_handler may not be implemented on Windows event loop
+                pass
+    except Exception:
+        pass
+
     await queue.consume(handle_message)
     print("Worker started, waiting for messages...")
     try:
-        while True:
-            await asyncio.sleep(1)
+        await stop_event.wait()
     finally:
+        # close the connection cleanly on the same loop
         await mq.close_rabbit(connection)
 
 

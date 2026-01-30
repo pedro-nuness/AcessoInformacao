@@ -1,48 +1,65 @@
-import asyncio
-from pathlib import Path
-from typing import Optional
-import asyncpg
 import os
-from dotenv import load_dotenv
+import logging
+import asyncpg
+import asyncio
+from typing import Optional
+from contextlib import asynccontextmanager
+from pathlib import Path
 
-load_dotenv()
+logger = logging.getLogger(__name__)
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@postgres:5432/postgres")
+class DatabaseManager:
+    _pool: Optional[asyncpg.Pool] = None
 
-_pool: Optional[asyncpg.pool.Pool] = None
+    @classmethod
+    async def connect(cls):
+        """Inicializa a pool global se não existir."""
+        if cls._pool is None:
+            dsn = os.getenv("DATABASE_URL")
+            try:
+                cls._pool = await asyncpg.create_pool(
+                    dsn,
+                    min_size=int(os.getenv("DB_POOL_MIN", "5")),
+                    max_size=int(os.getenv("DB_POOL_MAX", "20")),
+                    command_timeout=60.0
+                )
+                logger.info("Database pool connection established.")
+            except Exception as e:
+                logger.error(f"Could not connect to database: {e}")
+                raise
 
+            last_exc = None
+            for attempt in range(10):
+                try:
+                    migrations = Path(__file__).parents[2] / "migrations" / "processing_init.sql"
+                    if migrations.exists():
+                        async with cls._pool.acquire() as conn:
+                            sql = migrations.read_text(encoding="utf-8")
+                            await conn.execute(sql)
+                    last_exc = None
+                    break
+                except Exception as e:
+                    last_exc = e
+                    await asyncio.sleep(1)
+            if last_exc:
+                raise last_exc
 
-async def init_db(retries: int = 8, delay: float = 1.0):
-    global _pool
-    if _pool is not None:
-        return _pool
-    last_exc = None
-    # Allow controlling pool size via env vars to avoid exhausting Postgres max_connections
-    min_size = int(os.getenv("DB_POOL_MIN", "1"))
-    max_size = int(os.getenv("DB_POOL_MAX", "5"))
-    for attempt in range(retries):
-        try:
-            _pool = await asyncpg.create_pool(DATABASE_URL, min_size=min_size, max_size=max_size)
-            # Run migrations if present
-            migrations = Path(__file__).parents[2] / "migrations" / "processing_init.sql"
-            if migrations.exists():
-                async with _pool.acquire() as conn:
-                    sql = migrations.read_text(encoding="utf-8")
-                    await conn.execute(sql)
-            return _pool
-        except Exception as e:
-            last_exc = e
-            await asyncio.sleep(delay * (1 + attempt))
-    raise last_exc
+    @classmethod
+    async def disconnect(cls):
+        """Fecha a pool graciosamente."""
+        if cls._pool:
+            await cls._pool.close()
+            cls._pool = None
+            logger.info("Database pool connection closed.")
 
+    @classmethod
+    @asynccontextmanager
+    async def get_connection(cls):
+        """Context manager para adquirir e liberar conexões de forma segura."""
+        if cls._pool is None:
+            await cls.connect()
+        
+        async with cls._pool.acquire() as connection:
+            yield connection
 
-def get_pool() -> Optional[asyncpg.pool.Pool]:
-    return _pool
-
-
-async def close_db(pool: Optional[asyncpg.pool.Pool] = None):
-    global _pool
-    p = pool or _pool
-    if p:
-        await p.close()
-    _pool = None
+db_manager = DatabaseManager()
