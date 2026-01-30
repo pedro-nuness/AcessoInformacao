@@ -1,10 +1,8 @@
-import asyncio
-from typing import Dict
-from app.services.pii_detector.gemma_scanner import PIIGemmaScanner
-from app.services.pii_detector.presidio_scanner import PIIPresidioScanner
+from app.services.pii_detector.llm_scanner import LLMScanner
+from app.services.pii_detector.presidio_scanner import PresidioScanner
 
-GLOBAL_GEMMA_SCANNER = PIIGemmaScanner()
-GLOBAL_PRESIDIO_SCANNER = PIIPresidioScanner()
+GLOBAL_LLM_SCANNER = LLMScanner()
+GLOBAL_PRESIDIO_SCANNER = PresidioScanner()
 
 async def analyze_text(text: str) -> dict:
     presidio_results = GLOBAL_PRESIDIO_SCANNER.analyze_text(text)
@@ -18,7 +16,7 @@ async def analyze_text(text: str) -> dict:
         }
     
     # segunda verificação com o Gemma, isso caso o presidio não encontre nada
-    raw_gemma_response = await GLOBAL_GEMMA_SCANNER.analyze_text(text)
+    raw_gemma_response = await GLOBAL_LLM_SCANNER.analyze_text(text)
     
     should_be_private = raw_gemma_response.upper().startswith('Y')
     reason = raw_gemma_response[2:].strip() if len(raw_gemma_response) > 1 else "Não especificado"

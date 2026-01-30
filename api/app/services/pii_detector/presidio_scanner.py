@@ -4,7 +4,7 @@ from presidio_anonymizer import AnonymizerEngine
 from app.services.pii_detector.settings import SPACY_CONFIG
 from app.services.pii_detector.custom_patterns import RECOGNIZERS
 
-class PIIPresidioScanner:
+class PresidioScanner:
     def __init__(self):
 
         provider = NlpEngineProvider(nlp_configuration=SPACY_CONFIG)
