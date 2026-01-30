@@ -19,7 +19,7 @@ class RgRecognizer(PatternRecognizer):
             supported_language="pt"
         )
 
-class PhoneRecognizer(PatternRecognizer):
+class BrPhoneRecognizer(PatternRecognizer):
     def __init__(self):
         patterns = [
             Pattern(
@@ -244,7 +244,7 @@ class CustomEmailRecognizer(PatternRecognizer):
 
 
 RECOGNIZERS = [
-    PhoneRecognizer(),
+    BrPhoneRecognizer(),
     RgRecognizer(),
     CpfRecognizer(),
     CustomEmailRecognizer()
