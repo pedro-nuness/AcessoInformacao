@@ -1,3 +1,5 @@
+# Arquitetura do Sistema
+
 O sistema expõe uma API REST como ponto de entrada. A partir do momento em que um texto é enviado, a requisição é validada e rapidamente respondida com status HTTP de sucesso, evitando que o cliente fique bloqueado aguardando o processamento completo. Essa decisão arquitetural reduz latência percebida e protege o sistema contra sobrecarga direta na camada síncrona.
 
 Após o recebimento do texto, o conteúdo e seus metadados iniciais são persistidos diretamente no banco de dados, que atua como a principal fonte de verdade do sistema. Essa persistência imediata garante rastreabilidade do processamento e permite que o fluxo assíncrono continue mesmo em cenários de falha parcial.
