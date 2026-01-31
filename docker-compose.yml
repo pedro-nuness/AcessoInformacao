@@ -20,6 +20,10 @@ services:
     volumes:
       - ./api:/app
     environment:
+      - LLM_FALLBACK=${LLM_FALLBACK}
+      - LLM_API_KEY=${LLM_API_KEY}
+      - LLM_BASE_URL=${LLM_BASE_URL}
+      - LLM_MODEL=${LLM_MODEL}
       - PYTHONUNBUFFERED=1
       - RECOGNIZERS=${CUSTOM_PII_RECOGNIZERS}
       - DATABASE_URL=${DATABASE_URL}
@@ -30,7 +34,7 @@ services:
     depends_on:
       - postgres
       - rabbitmq
-      
+
   # RabbitMQ instance: can be omitted if using an external RabbitMQ server
   rabbitmq:
     image: rabbitmq:3.11-management
@@ -59,6 +63,7 @@ services:
     volumes:
       - ./api:/app
     environment:
+      - LLM_FALLBACK=${LLM_FALLBACK}
       - LLM_API_KEY=${LLM_API_KEY}
       - LLM_BASE_URL=${LLM_BASE_URL}
       - LLM_MODEL=${LLM_MODEL}

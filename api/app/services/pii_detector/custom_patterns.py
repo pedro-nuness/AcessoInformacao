@@ -243,9 +243,18 @@ class CustomEmailRecognizer(PatternRecognizer):
         )
 
 
+# You can add or remove recognizers from this list to customize which PII types to detect
 RECOGNIZERS = [
     BrPhoneRecognizer(),
-    # RgRecognizer(),
+    #RgRecognizer(),
     CpfRecognizer(),
-    CustomEmailRecognizer()
+    # CnpjRecognizer(),
+    # CnsRecognizer(),
+    # CnhRecognizer(),
+    # CarPlateRecognizer(),
+    # PisRecognizer(),
+    # RenavamRecognizer(),
+    # TituloEleitoralRecognizer(),
+    # PasswordRecognizer(),
+    CustomEmailRecognizer(),
 ]

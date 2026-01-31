@@ -1,8 +1,14 @@
 import os
 from openai import AsyncOpenAI as OpenAI
 
+llm_enabled=os.getenv("LLM_FALLBACK")  # ensure LLM scanner is initialized
+
+
 class LLMScanner:
     def __init__(self):
+        if not llm_enabled or llm_enabled.lower() == 'false':
+            return
+        
         self.model = os.environ.get('LLM_MODEL')
         self.client = OpenAI(
             api_key=os.environ.get('LLM_API_KEY'), 
@@ -34,6 +40,9 @@ class LLMScanner:
                         """
         
     async def analyze_text(self, text: str):
+        if not llm_enabled or llm_enabled.lower() == 'false':
+            return None
+
         response = await self.client.chat.completions.create(
             model=self.model,
             messages=[
