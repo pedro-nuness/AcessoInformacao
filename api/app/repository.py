@@ -9,7 +9,7 @@ from app.models import (
     Shipment,
     Processing,
 )
-from app.core.db_service import DBService
+from app.core.db import db_manager
 
 
 def row_to_model(row) -> Optional[RegisterProcessEvent]:
@@ -48,9 +48,8 @@ def row_to_model(row) -> Optional[RegisterProcessEvent]:
     )
 
 
-async def create_processing(original_text: str, external_id: Optional[str] = None) -> UUID:
-    db = await DBService.get()
-    async with db.pool.acquire() as conn:
+async def create_processing(original_text: str, external_id: str = None):
+    async with db_manager.get_connection() as conn:
         async with conn.transaction():
             # create processing (was register_process)
             register_id = await conn.fetchval(
@@ -77,27 +76,38 @@ async def create_processing(original_text: str, external_id: Optional[str] = Non
 
 
 async def get_processing(id: UUID) -> Optional[RegisterProcessEvent]:
-    db = await DBService.get()
-    row = await db.fetchrow(
-        "SELECT p.*, r.status as register_status, r.attempt_count as register_attempt_count, r.id as register_process_id, s.status as shipment_status, s.attempt_count as shipment_attempt_count, s.id as shipment_id FROM register_process_event p LEFT JOIN processing r ON r.id = p.register_process_id LEFT JOIN shipment s ON s.id = p.shipment_id WHERE p.id = $1",
-        id,
-    )
+    async with db_manager.get_connection() as conn:
+        row = await conn.fetchrow(
+            "SELECT p.*, r.status as register_status, r.attempt_count as register_attempt_count, r.id as register_process_id, s.status as shipment_status, s.attempt_count as shipment_attempt_count, s.id as shipment_id FROM register_process_event p LEFT JOIN processing r ON r.id = p.register_process_id LEFT JOIN shipment s ON s.id = p.shipment_id WHERE p.id = $1",
+            id,
+        )
     if not row:
         return None
     return row_to_model(row)
 
 
+async def get_processing_by_external_id(external_id: str) -> List[RegisterProcessEvent]:
+    async with db_manager.get_connection() as conn:
+        rows = await conn.fetch(
+            "SELECT p.*, r.status as register_status, r.attempt_count as register_attempt_count, r.id as register_process_id, s.status as shipment_status, s.attempt_count as shipment_attempt_count, s.id as shipment_id FROM register_process_event p LEFT JOIN processing r ON r.id = p.register_process_id LEFT JOIN shipment s ON s.id = p.shipment_id WHERE p.external_id = $1",
+            external_id,
+        )
+    out = []
+    for row in rows:
+        out.append(row_to_model(row))
+    return out
+
+
 async def update_status(id: UUID, status: str):
-    db = await DBService.get()
-    return await db.execute("UPDATE register_process_event SET status = $1, updated_at = now() WHERE id = $2", status, id)
+    async with db_manager.get_connection() as conn:
+        return await conn.execute("UPDATE register_process_event SET status = $1, updated_at = now() WHERE id = $2", status, id)
 
 
 async def update_result(id: UUID, result: dict):
     """When worker finishes analysis: set processing_status.result, mark processing as READY_TO_SHIP,
     set register_process to COMPLETED and shipment to READY.
     """
-    db = await DBService.get()
-    async with db.pool.acquire() as conn:
+    async with db_manager.get_connection() as conn:
         async with conn.transaction():
             row = await conn.fetchrow("SELECT register_process_id, shipment_id FROM register_process_event WHERE id = $1", id)
             if not row:
@@ -129,25 +139,24 @@ async def update_result(id: UUID, result: dict):
 
 
 async def fetch_pending_shipments() -> List[Dict]:
-    db = await DBService.get()
-    rows = await db.fetch(
-        "SELECT p.id as processing_id, p.result, s.id as shipment_id, s.status as shipment_status, s.attempt_count as shipment_attempt_count FROM register_process_event p JOIN shipment s ON s.id = p.shipment_id WHERE s.status != 'sent' AND p.result IS NOT NULL"
-    )
+    async with db_manager.get_connection() as conn:
+        rows = await conn.fetch(
+            "SELECT p.id as processing_id, p.result, p.external_id, s.id as shipment_id, s.status as shipment_status, s.attempt_count as shipment_attempt_count FROM register_process_event p JOIN shipment s ON s.id = p.shipment_id WHERE s.status != 'sent' AND p.result IS NOT NULL"
+        )
     out = []
     for r in rows:
         out.append(
             {
                 "processing_id": r.get("processing_id"),
                 "result": r.get("result"),
-                "shipment": {"id": r.get("shipment_id"), "status": r.get("shipment_status"), "attemptCount": r.get("shipment_attempt_count")},
+                "externalId": r.get("external_id"),
             }
         )
     return out
 
 
 async def mark_shipment_sent(processing_id: UUID):
-    db = await DBService.get()
-    async with db.pool.acquire() as conn:
+    async with db_manager.get_connection() as conn:
         row = await conn.fetchrow("SELECT shipment_id FROM register_process_event WHERE id = $1", processing_id)
         if not row:
             return None
@@ -159,8 +168,7 @@ async def mark_shipment_sent(processing_id: UUID):
 
 async def update_register_process_status_by_processing_id(processing_id: UUID, status: str):
     """Update register_process.status given a processing_status id."""
-    db = await DBService.get()
-    async with db.pool.acquire() as conn:
+    async with db_manager.get_connection() as conn:
         row = await conn.fetchrow("SELECT register_process_id FROM register_process_event WHERE id = $1", processing_id)
         if not row:
             return None
@@ -172,8 +180,7 @@ async def update_register_process_status_by_processing_id(processing_id: UUID, s
 
 async def set_shipment_status_by_processing_id(processing_id: UUID, shipment_status: str, increment_attempt: bool = False):
     """Set shipment.status (and optionally increment attempt_count) for the shipment related to processing_status id."""
-    db = await DBService.get()
-    async with db.pool.acquire() as conn:
+    async with db_manager.get_connection() as conn:
         async with conn.transaction():
             row = await conn.fetchrow("SELECT shipment_id FROM register_process_event WHERE id = $1", processing_id)
             if not row:
@@ -196,8 +203,8 @@ async def set_shipment_status_by_processing_id(processing_id: UUID, shipment_sta
 
 
 async def get_shipment_attempts_by_processing_id(processing_id: UUID):
-    db = await DBService.get()
-    row = await db.fetchrow("SELECT s.attempt_count as shipment_attempt_count FROM register_process_event p JOIN shipment s ON s.id = p.shipment_id WHERE p.id = $1", processing_id)
-    if not row:
-        return None
-    return row.get("shipment_attempt_count")
+    async with db_manager.get_connection() as conn:
+        row = await conn.fetchrow("SELECT s.attempt_count as shipment_attempt_count FROM register_process_event p JOIN shipment s ON s.id = p.shipment_id WHERE p.id = $1", processing_id)
+        if not row:
+            return None
+        return row.get("shipment_attempt_count")
