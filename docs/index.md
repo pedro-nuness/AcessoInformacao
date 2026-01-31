@@ -1,17 +1,19 @@
-# Welcome to MkDocs
+# 🛡️ Sistema de Identificação de PII - CGDF
 
-For full documentation visit [mkdocs.org](https://www.mkdocs.org).
+Bem-vindo à documentação oficial da solução desenvolvida para o Hackathon de Acesso à Informação.
 
-## Commands
+## 🎯 Objetivo
+O objetivo deste projeto é automatizar a triagem de pedidos de acesso à informação, identificando dados pessoais (PII) para garantir a proteção da privacidade (LGPD) e a transparência pública.
 
-* `mkdocs new [dir-name]` - Create a new project.
-* `mkdocs serve` - Start the live-reloading docs server.
-* `mkdocs build` - Build the documentation site.
-* `mkdocs -h` - Print help message and exit.
+## 🏗️ Arquitetura da Solução
+Nossa solução utiliza um **Modelo Híbrido**:
+1. **Microsoft Presidio:** Para detecção veloz de padrões (CPF, Telefone, E-mail).
+2. **LLM (DeepSeek/Gemma):** Para análise de contexto semântico, garantindo alta **Sensibilidade (Recall)**.
 
-## Project layout
+## 📂 Organização do Projeto
+* `api/app/`: Lógica central do Scanner.
+* `api/challenge/`: Script de processamento em lote para a banca.
+* `api/tests/`: Suite de testes automatizados.
 
-    mkdocs.yml    # The configuration file.
-    docs/
-        index.md  # The documentation homepage.
-        ...       # Other markdown pages, images and other files.
+!!! tip "Dica para os Jurados"
+    Acesse o menu lateral para ver as instruções detalhadas de **Instalação** e **Execução** do modelo.
