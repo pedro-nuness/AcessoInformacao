@@ -29,9 +29,9 @@ theme:
 
 nav:
   - 'Início': index.md
-  - 'Guia de Instalação': instalacao.md
   - 'Linha de Raciocínio': raciocinio.md
   - 'Arquitetura Técnica': arquitetura.md
+  - 'Guia de Instalação': instalacao.md
 
 markdown_extensions:
   - admonition
