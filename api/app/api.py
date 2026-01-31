@@ -8,6 +8,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from app.core.db import db_manager
 from app import repository
+from app.services.ai_analyzer import analyze_text
+from app.models import Status, RegisterProcessStatus, ShipmentStatus
 from typing import Optional
 from pydantic import BaseModel
 from uuid import UUID
@@ -63,6 +65,20 @@ async def create_processing(req: CreateRequest):
     logger.info(f"create_processing id={id} duration_ms={(time.monotonic()-start)*1000:.1f} returned=accepted")
     return JSONResponse(status_code=202, content={"id": str(id)})
      
+@app.post("/processing/now")
+async def create_and_process_now(req: CreateRequest):
+    start = time.monotonic()
+    try:
+        result = await analyze_text(req.originalText)
+
+        duration_ms = (time.monotonic() - start) * 1000
+        logger.info(f"create_and_process_now inline duration_ms={duration_ms:.1f} returned=ok")
+        return JSONResponse(status_code=200, content={"result": result})
+
+    except Exception as e:
+        logger.exception(f"Inline processing failed: {e}")
+        raise HTTPException(status_code=500, detail="Processing failed")
+
 
 @app.get("/processing/{id}")
 async def get_processing(id: UUID):
