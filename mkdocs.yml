@@ -32,3 +32,8 @@ nav:
   - 'Guia de Instalação': instalacao.md
   - 'Execução do Modelo': execucao.md
   - 'Arquitetura Técnica': arquitetura.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences

@@ -1,19 +1,36 @@
-# 🛡️ Sistema de Identificação de PII - CGDF
+# Identificação de PII - Hackathon CGDF
 
-Bem-vindo à documentação oficial da solução desenvolvida para o Hackathon de Acesso à Informação.
+Bem-vindo à documentação oficial da solução desenvolvida para o *1º Hackathon em Controle Social: Desafio Participa DF*.
 
-## 🎯 Objetivo
-O objetivo deste projeto é automatizar a triagem de pedidos de acesso à informação, identificando dados pessoais (PII) para garantir a proteção da privacidade (LGPD) e a transparência pública.
+## Contexto do Projeto
+Este projeto foi concebido para a **Categoria Acesso à Informação**. O desafio proposto pela CGDF consiste em desenvolver modelos capazes de identificar automaticamente pedidos de acesso à informação que contenham dados pessoais, garantindo que manifestações que deveriam ser restritas não sejam classificadas indevidamente como públicas.
 
-## 🏗️ Arquitetura da Solução
-Nossa solução utiliza um **Modelo Híbrido**:
-1. **Microsoft Presidio:** Para detecção veloz de padrões (CPF, Telefone, E-mail).
-2. **LLM (DeepSeek/Gemma):** Para análise de contexto semântico, garantindo alta **Sensibilidade (Recall)**.
+!!! abstract "Escopo de Dados Pessoais (Edital)"
+    De acordo com as diretrizes do edital para este Hackathon, o modelo foi configurado para identificar especificamente as seguintes entidades como dados pessoais restritos:
+    **RG, CPF, Nome, Telefone e E-mail.**
 
-## 📂 Organização do Projeto
-* `api/app/`: Lógica central do Scanner.
-* `api/challenge/`: Script de processamento em lote para a banca.
-* `api/tests/`: Suite de testes automatizados.
+## Tecnologias Utilizadas
+* **Linguagem:** Python 3.10+
+* **IA & NLP:** Microsoft Presidio, Spacy (pt_core_news_lg).
+* **LLM:** DeepSeek para análise semântica de contexto.
+* **Processamento:** Pandas e TQDM para gestão de grandes volumes de dados (batch).
 
-!!! tip "Dica para os Jurados"
-    Acesse o menu lateral para ver as instruções detalhadas de **Instalação** e **Execução** do modelo.
+## Contribuidores
+
+<center>
+    <table>
+    <tr>
+        <td align="center">
+        <a href="https://github.com/danielle-soaress">
+            <img src="https://github.com/danielle-soaress.png" width="190" style="border-radius: 50%;" alt="Danielle Soares"/>
+            <br/><sub><b>Danielle Soares</b></sub>
+        </a>
+        </td>
+        <td align="center">
+        <a href="https://github.com/pedro-nuness">
+            <img src="https://github.com/pedro-nuness.png" width="190" style="border-radius: 50%;" alt="Pedro Henrique Nunes"/>
+            <br/><sub><b>Pedro Henrique Nunes</b></sub>
+        </a>
+        </td>
+    </table>
+</center>
