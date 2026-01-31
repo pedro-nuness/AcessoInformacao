@@ -1,12 +1,12 @@
 import os
-from openai import OpenAI, AsyncOpenAI
+from openai import AsyncOpenAI as OpenAI
 
 class LLMScanner:
     def __init__(self):
         self.model = os.environ.get('LLM_MODEL')
-        self.client = AsyncOpenAI(
+        self.client = OpenAI(
             api_key=os.environ.get('LLM_API_KEY'), 
-            base_url=os.environ.get('LLM_API_BASE_URL')
+            base_url=os.environ.get('LLM_BASE_URL')
         )
         
 
