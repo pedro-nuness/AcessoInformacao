@@ -30,7 +30,7 @@ theme:
 nav:
   - 'Início': index.md
   - 'Guia de Instalação': instalacao.md
-  - 'Execução do Modelo': execucao.md
+  - 'Linha de Raciocínio': raciocinio.md
   - 'Arquitetura Técnica': arquitetura.md
 
 markdown_extensions:
