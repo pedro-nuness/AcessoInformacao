@@ -1,6 +1,8 @@
 site_name: "Solução CGDF - Identificação de PII"
 site_description: "Documentação técnica para o desafio de Acesso à Informação"
 site_author: "Danielle Soares"
+site_url: https://pedro-nuness.github.io/AcessoInformacao/
+use_directory_urls: true
 
 theme:
   name: material
