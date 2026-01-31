@@ -1,8 +1,11 @@
+import os
 from app.services.pii_detector.llm_scanner import LLMScanner
 from app.services.pii_detector.presidio_scanner import PresidioScanner
 
 GLOBAL_LLM_SCANNER = LLMScanner()
 GLOBAL_PRESIDIO_SCANNER = PresidioScanner()
+
+llm_enabled=os.getenv("LLM_FALLBACK")  # ensure LLM scanner is initialized
 
 async def analyze_text(text: str) -> dict:
     presidio_results = GLOBAL_PRESIDIO_SCANNER.analyze_text(text)
@@ -15,6 +18,11 @@ async def analyze_text(text: str) -> dict:
             "details": f"Identificado: {', '.join(entidades)}"
         }
     
+    if not llm_enabled or llm_enabled.lower() == 'false':
+        return {
+            "result": "PUBLIC",
+            "details": "Texto classificado como SEGURO."
+        }
     # segunda verificação com o Gemma, isso caso o presidio não encontre nada
     raw_gemma_response = await GLOBAL_LLM_SCANNER.analyze_text(text)
     
