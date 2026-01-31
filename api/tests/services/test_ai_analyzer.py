@@ -83,7 +83,7 @@ from app.services.ai_analyzer import analyze_text
 
 ])
 @pytest.mark.asyncio
-async def test_casos_rigorosos_edital(descricao, texto, resultado_esperado):
+async def test_complex_cases(descricao, texto, resultado_esperado):
     print(f"\nExecutando: {descricao}")
     
     result = await analyze_text(texto)

@@ -12,7 +12,7 @@ async def analyze_text(text: str) -> dict:
         
         return {
             "result": "PRIVATE",
-            "details": f"Identificado pelo Presidio: {', '.join(entidades)}"
+            "details": f"Identificado: {', '.join(entidades)}"
         }
     
     # segunda verificação com o Gemma, isso caso o presidio não encontre nada
@@ -23,5 +23,5 @@ async def analyze_text(text: str) -> dict:
 
     return {
         "result": "PRIVATE" if should_be_private else "PUBLIC",
-        "details": reason if should_be_private else "Texto analisado e classificado como seguro."
+        "details": f"Identificado: {reason}" if should_be_private else "Texto classificado como SEGURO."
     }

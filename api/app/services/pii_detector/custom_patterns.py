@@ -25,7 +25,7 @@ class BrPhoneRecognizer(PatternRecognizer):
             Pattern(
                 name="br_phone_pattern",
                 regex=r"\b(?:\(?\d{2}\)?\s?)?(?:9\s?)?\d{4}[\s-]?\d{4}\b",
-                score=0.5
+                score=0.35
             )
         ]
         
@@ -245,7 +245,7 @@ class CustomEmailRecognizer(PatternRecognizer):
 
 RECOGNIZERS = [
     BrPhoneRecognizer(),
-    RgRecognizer(),
+    # RgRecognizer(),
     CpfRecognizer(),
     CustomEmailRecognizer()
 ]
