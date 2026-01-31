@@ -1,0 +1,32 @@
+site_name: "Solução CGDF - Identificação de PII"
+site_description: "Documentação técnica para o desafio de Acesso à Informação"
+site_author: "Danielle Soares"
+
+theme:
+  name: material
+  language: pt-BR
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Mudar para modo escuro
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Mudar para modo claro
+  features:
+    - navigation.sections
+    - navigation.expand
+    - content.code.copy
+
+nav:
+  - 'Início': index.md
+  - 'Guia de Instalação': instalacao.md
+  - 'Execução do Modelo': execucao.md
+  - 'Arquitetura Técnica': arquitetura.md
