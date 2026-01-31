@@ -9,8 +9,8 @@ Content-Type: application/json
   "originalText": "Relatório de Incidente:\nOcorreu um acidente com o veículo de placa ABC-1234.\nO suspeito fugiu no Fiat Uno, placa ABC1C34.\nO CPF do envolvido é 123.456.789-00.\nContato: joao.silva@email.com.\nPara acessar o sistema, a senha: SuperSecreta123!. Mas essa parte aaqui não é uma senha ok?\nPara acessar o sistema: ph050206.\nO nome do solicitante é Maria Souza."
 }
 
-###
-
 ### Get Processing event by ID
 GET http://localhost:8000/processing/{{createProcessing.response.body.id}}
 
+### Get Processing event by external ID
+GET http://localhost:8000/processing/external/req-12345

@@ -74,3 +74,20 @@ async def get_processing(id: UUID):
         raise HTTPException(status_code=404, detail="Not found")
     logger.info(f"get_processing id={id} duration_ms={duration_ms:.1f} status={model.shipment.status}")
     return model.model_dump()
+
+@app.get("/processing/external/{external_id}")
+async def get_processing_by_external(external_id: str):
+    start = time.monotonic()
+    models = await repository.get_processing_by_external_id(external_id)
+    duration_ms = (time.monotonic() - start) * 1000
+    if not models:
+        logger.info(f"get_processing_by_external externalId={external_id} duration_ms={duration_ms:.1f} returned=404")
+        raise HTTPException(status_code=404, detail="Not found")
+    # if only one result, return single object, otherwise return list
+    if len(models) == 1:
+        model = models[0]
+        logger.info(f"get_processing_by_external externalId={external_id} duration_ms={duration_ms:.1f} status={model.shipment.status}")
+        return model.model_dump()
+    else:
+        logger.info(f"get_processing_by_external externalId={external_id} duration_ms={duration_ms:.1f} returned={len(models)} items")
+        return [m.model_dump() for m in models]

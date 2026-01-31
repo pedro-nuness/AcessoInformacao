@@ -25,7 +25,7 @@ class DatabaseManager:
                 )
                 logger.info("Database pool connection established.")
             except Exception as e:
-                logger.error(f"Could not connect to database: {e}")
+                logger.error(f"Could not connect to database: try again later.")
                 raise
 
             last_exc = None

@@ -86,6 +86,18 @@ async def get_processing(id: UUID) -> Optional[RegisterProcessEvent]:
     return row_to_model(row)
 
 
+async def get_processing_by_external_id(external_id: str) -> List[RegisterProcessEvent]:
+    async with db_manager.get_connection() as conn:
+        rows = await conn.fetch(
+            "SELECT p.*, r.status as register_status, r.attempt_count as register_attempt_count, r.id as register_process_id, s.status as shipment_status, s.attempt_count as shipment_attempt_count, s.id as shipment_id FROM register_process_event p LEFT JOIN processing r ON r.id = p.register_process_id LEFT JOIN shipment s ON s.id = p.shipment_id WHERE p.external_id = $1",
+            external_id,
+        )
+    out = []
+    for row in rows:
+        out.append(row_to_model(row))
+    return out
+
+
 async def update_status(id: UUID, status: str):
     async with db_manager.get_connection() as conn:
         return await conn.execute("UPDATE register_process_event SET status = $1, updated_at = now() WHERE id = $2", status, id)
