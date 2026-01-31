@@ -1,4 +1,5 @@
 services:
+ # PostgreSQL instance: can be omitted if using an external database
   postgres:
     image: postgres:14-alpine
     restart: unless-stopped
@@ -20,14 +21,17 @@ services:
       - ./api:/app
     environment:
       - PYTHONUNBUFFERED=1
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - RECOGNIZERS=${CUSTOM_PII_RECOGNIZERS}
+      - DATABASE_URL=${DATABASE_URL}
       - DB_POOL_MIN=1
       - DB_POOL_MAX=20
-      - RABBIT_URL=amqp://${RABBIT_USER:-guest}:${RABBIT_PASSWORD:-guest}@rabbitmq:5672/
+      - RABBIT_URL=${RABBIT_URL}
     restart: unless-stopped
     depends_on:
       - postgres
       - rabbitmq
+      
+  # RabbitMQ instance: can be omitted if using an external RabbitMQ server
   rabbitmq:
     image: rabbitmq:3.11-management
     restart: unless-stopped
@@ -54,10 +58,10 @@ services:
       - ./api:/app
     environment:
       - PYTHONUNBUFFERED=1
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - DATABASE_URL=${DATABASE_URL}
       - DB_POOL_MIN=1
       - DB_POOL_MAX=10
-      - RABBIT_URL=amqp://${RABBIT_USER:-guest}:${RABBIT_PASSWORD:-guest}@rabbitmq:5672/
+      - RABBIT_URL=${RABBIT_URL}
       - RABBIT_PREFETCH=3
     depends_on:
       - postgres
@@ -71,12 +75,19 @@ services:
       - ./api:/app
     environment:
       - PYTHONUNBUFFERED=1
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - DATABASE_URL=${DATABASE_URL}
       - DB_POOL_MIN=1
       - DB_POOL_MAX=5
-      - RABBIT_URL=amqp://${RABBIT_USER:-guest}:${RABBIT_PASSWORD:-guest}@rabbitmq:5672/
+      - RABBIT_URL=${RABBIT_URL}
       - WEBHOOK_URL=${WEBHOOK_URL}
       - DISPATCH_INTERVAL=30
+      - DISPATCH_SEND_DELAY=${DISPATCH_SEND_DELAY:-0}
+      - CB_FAILURE_THRESHOLD=${CB_FAILURE_THRESHOLD:-3}
+      - CB_RECOVERY_TIMEOUT=${CB_RECOVERY_TIMEOUT:-60}
+      - CB_HALF_OPEN_MAX_CALLS=${CB_HALF_OPEN_MAX_CALLS:-1}
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET}
+      - WEBHOOK_SECRET_HEADER=${WEBHOOK_SECRET_HEADER:-Authorization}
+      - WEBHOOK_SECRET_PREFIX=${WEBHOOK_SECRET_PREFIX}
     depends_on:
       - postgres
       - rabbitmq

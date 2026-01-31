@@ -129,7 +129,7 @@ async def update_result(id: UUID, result: dict):
 async def fetch_pending_shipments() -> List[Dict]:
     async with db_manager.get_connection() as conn:
         rows = await conn.fetch(
-            "SELECT p.id as processing_id, p.result, s.id as shipment_id, s.status as shipment_status, s.attempt_count as shipment_attempt_count FROM register_process_event p JOIN shipment s ON s.id = p.shipment_id WHERE s.status != 'sent' AND p.result IS NOT NULL"
+            "SELECT p.id as processing_id, p.result, p.external_id, s.id as shipment_id, s.status as shipment_status, s.attempt_count as shipment_attempt_count FROM register_process_event p JOIN shipment s ON s.id = p.shipment_id WHERE s.status != 'sent' AND p.result IS NOT NULL"
         )
     out = []
     for r in rows:
@@ -137,7 +137,7 @@ async def fetch_pending_shipments() -> List[Dict]:
             {
                 "processing_id": r.get("processing_id"),
                 "result": r.get("result"),
-                "shipment": {"id": r.get("shipment_id"), "status": r.get("shipment_status"), "attemptCount": r.get("shipment_attempt_count")},
+                "externalId": r.get("external_id"),
             }
         )
     return out

@@ -17,6 +17,12 @@ from app.repository import (
 
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 DISPATCH_INTERVAL = int(os.getenv("DISPATCH_INTERVAL", "30"))  # Intervalo em segundos entre verificações de envios pendentes
+DISPATCH_SEND_DELAY = float(os.getenv("DISPATCH_SEND_DELAY", "0"))  # Delay (s) between individual sends to webhook
+
+# Optional webhook auth secret and header configuration
+WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET")
+WEBHOOK_SECRET_HEADER = os.getenv("WEBHOOK_SECRET_HEADER", "Authorization")
+WEBHOOK_SECRET_PREFIX = os.getenv("WEBHOOK_SECRET_PREFIX")  # e.g. "Bearer"
 
 CB_FAILURE_THRESHOLD = int(os.getenv("CB_FAILURE_THRESHOLD", "3")) # Número de falhas para abrir o circuito
 CB_RECOVERY_TIMEOUT = int(os.getenv("CB_RECOVERY_TIMEOUT", "60"))   # Tempo em segundos para tentar fechar o circuito novamente
@@ -93,7 +99,7 @@ async def dispatch_pending():
         for row in rows:
             proc_id = row["processing_id"]
             result = row["result"]
-            shipment = row["shipment"]
+            external_id = row["externalId"]
 
             if not WEBHOOK_URL:
                 logging.warning("WEBHOOK_URL not configured; skipping dispatch")
@@ -110,7 +116,7 @@ async def dispatch_pending():
                 logging.exception(f"Failed to mark processing {proc_id} as ON_SHIPMENT")
 
             # prepare payload ensuring UUIDs are converted to strings
-            payload = {"id": str(proc_id), "result": result, "shipment": shipment}
+            payload = {"id": str(proc_id), "result": result, "externalId": external_id}
             try:
                 payload_json = json.dumps(payload, default=str)
             except Exception as ser_e:
@@ -128,6 +134,14 @@ async def dispatch_pending():
             try:
                 async with aiohttp.ClientSession() as session:
                     headers = {"Content-Type": "application/json"}
+                    # attach secret header if configured
+                    if WEBHOOK_SECRET:
+                        if WEBHOOK_SECRET_PREFIX:
+                            header_value = f"{WEBHOOK_SECRET_PREFIX} {WEBHOOK_SECRET}"
+                        else:
+                            header_value = WEBHOOK_SECRET
+                        headers[WEBHOOK_SECRET_HEADER] = header_value
+
                     resp = await session.post(WEBHOOK_URL, data=payload_json, headers=headers)
                     resp_text = await resp.text()
                     if 200 <= resp.status < 300:
@@ -167,6 +181,14 @@ async def dispatch_pending():
                     await update_register_process_status_by_processing_id(proc_id, RegisterProcessStatus.ERROR_RETRY.value)
                 except Exception:
                     logging.exception(f"Failed to persist error state for id={proc_id}")
+
+            # optional small delay between individual sends to avoid rate-limits
+            if DISPATCH_SEND_DELAY and DISPATCH_SEND_DELAY > 0:
+                try:
+                    await asyncio.sleep(DISPATCH_SEND_DELAY)
+                except Exception:
+                    # ignore sleep errors and continue
+                    pass
 
         await asyncio.sleep(DISPATCH_INTERVAL)
 
